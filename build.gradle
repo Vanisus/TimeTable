@@ -5,7 +5,7 @@ repositories {
 	mavenCentral()
 }
 
-mainClassName = "ru.betry.App"
+mainClassName = "ru.vanisus.App"
 
 dependencies {
 	implementation group: 'com.github.pengrad', name: 'java-telegram-bot-api', version: '6.2.0'
