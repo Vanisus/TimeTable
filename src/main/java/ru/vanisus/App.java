@@ -1,4 +1,4 @@
-package ru.betry;
+package ru.vanisus;
 
 public class App{
  	public final static void main(String[] args) {
