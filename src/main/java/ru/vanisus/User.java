@@ -3,7 +3,7 @@ package ru.vanisus;
 import java.net.URL;
 
 public class User {
-    public User(String name, java.net.URL URL) {
+    public User(String name, String URL) {
         this.name = name;
         this.url = URL;
     }
@@ -16,14 +16,14 @@ public class User {
         this.name = name;
     }
 
-    public java.net.URL getUrl() {
+    public String getUrl() {
         return url;
     }
 
-    public void setUrl(URL url) {
+    public void setUrl(String url) {
         this.url = url;
     }
 
     private String name;
-    private java.net.URL url;
+    private String url;
 }
