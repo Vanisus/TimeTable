@@ -1,11 +1,35 @@
 package ru.vanisus;
 
 import java.net.URL;
+import java.sql.Connection;
+import java.sql.Statement;
+
+import static ru.vanisus.App.dbStatement;
+import static ru.vanisus.App.getConnection;
 
 public class User {
-    public User(String name, String URL) {
+    private String name;
+    private Long userID;
+    private String url;
+
+
+    public User(Long userID, String name, String url) {
+        dbStatement("INSERT INTO timetable.User(UserID, URL) values (" + userID + ", '" + url + "')");
+//        try{
+//            Class.forName("com.mysql.cj.jdbc.Driver").getDeclaredConstructor().newInstance();
+//            try (Connection conn = getConnection()){
+//                Statement statement = conn.createStatement();
+//                int rows = statement.executeUpdate("INSERT INTO timetable.User(UserID, URL) values (" + UserID + ", '" + URL + "')");
+//                System.out.println("Added: " + rows);
+//            }
+//        }
+//        catch(Exception ex){
+//            System.out.println("Connection failed...");
+//            System.out.println(ex);
+//        }
         this.name = name;
-        this.url = URL;
+        this.url = url;
+        this.userID = userID;
     }
 
     public String getName() {
@@ -24,6 +48,11 @@ public class User {
         this.url = url;
     }
 
-    private String name;
-    private String url;
+    public Long getUserID() {
+        return userID;
+    }
+
+    public void setUserID(Long userID) {
+        this.userID = userID;
+    }
 }
