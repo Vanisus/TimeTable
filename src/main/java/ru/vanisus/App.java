@@ -1,8 +1,10 @@
 package ru.vanisus;
-
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
+import com.pengrad.telegrambot.model.BotCommand;
+import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
+import com.pengrad.telegrambot.request.SetMyCommands;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -10,63 +12,52 @@ import org.jsoup.nodes.Element;
 
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.*;
 
-public class App{
+import static ru.vanisus.DAO.*;
+
+public class App {
  	public static void main(String[] args) {
-		String TOKEN = "5738277062:AAG4D7DN0YLtSsBlfN7jJKN4xiycjaqZsGU";
-		Map<Long, User> users = new HashMap<>();
+		String TOKEN = "6107692340:AAEUQDi7nTDQAnp7kqvVrhY60QWxjPIe15A";
 		TelegramBot bot = new TelegramBot(TOKEN);
-		Clock clock = Clock.systemDefaultZone();
-		DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
-		String date = dateFormat.format(new Date());
+//		TimeZone tz = TimeZone.getTimeZone("Europe/Samara");
+//		Calendar cal = Calendar.getInstance(tz);
+//		cal.set(Calendar.HOUR_OF_DAY, 9);
+//		cal.set(Calendar.MINUTE, 19);
+//		cal.set(Calendar.SECOND, 0);
+//		cal.set(Calendar.MILLISECOND, 0);
+//		long delay = cal.getTimeInMillis() - System.currentTimeMillis();
 		bot.setUpdatesListener(updates -> {
 			updates.forEach(System.out::println);
 				updates.forEach(update -> {
-				Long userId = update.message().from().id();
 				Document doc = null;
 				Element day;
 				Element week;
 				String div;
-				if (!users.containsKey(userId)) {
-					bot.execute(new SendMessage(update.message().chat().id(), "Вам необходимо прислать ссылку на расписание вашей группы"));
-					users.put(userId, null);
+				bot.execute(new SetMyCommands(new BotCommand("today", "Расписание на сегодня"), new BotCommand("tommorow", "Расписание на завтра"), new BotCommand("thisWeek", "Расписание на текущую неделю"),new BotCommand("nextWeek", "Расписание на следующую неделю")));
+				if (!findId(update.message().from().id())) {
+						if(update.message().text().equalsIgnoreCase("/start"))
+							bot.execute(new SendMessage(update.message().chat().id(), "Вам необходимо прислать ссылку на расписание вашей группы"));
+						String url = update.message().text();
+						System.out.println(url);
+						if(!url.equalsIgnoreCase("/start")) {
+							if(urlChecker(update, url)) {
+								bot.execute(new SendMessage(update.message().chat().id(), "Принял, отлично, теперь вы можете просматривать свое расписание благодаря мне :)"));
+								//User user = new User(update.message().from().id(), update.message().from().firstName(), url);
+								addRow(update.message().from().id(), url);
+							} else
+								bot.execute(new SendMessage(update.message().chat().id(), "Вы прислали мне какую-то непонятную ссылку, пришлите ссылку формата \"https://rasp.sstu.ru/rasp/group/\""));
+						}
 				}
-				else if (users.get(userId) == null) {
-					String rightUrl = "https://rasp.sstu.ru/rasp/group/";
-					String url = update.message().text();
-					String testUrl = url.replaceAll("[0-9]", "");
-					if (!(testUrl.equals(rightUrl) && urlValidator(url)))
-						bot.execute(new SendMessage(update.message().chat().id(), "Вы прислали мне какую-то непонятную ссылку, пришлите ссылку формата \"https://rasp.sstu.ru/rasp/group/\""));
-					else {
-						User user = new User(userId,update.message().from().firstName(), url);
-						users.put(userId, user);
-						bot.execute(new SendMessage(update.message().chat().id(), "Принял, отлично, теперь вы можете просматривать свое расписание благодаря мне :)"));
-
-					}
-
-					//bot.execute(new SendMessage(update.message().chat().id(), doc.text()));
-				}
-				if(update.message().text().equals("Расписание на сегодня"))
+				if(update.message().text().equalsIgnoreCase("расписание на сегодня") || update.message().text().equalsIgnoreCase("/command1"))
 				{
+					//bot.execute(new SendMessage(update.message().chat().id() ,"ЛАЛАЛА Я СЛОМАЛСЯ"));
 					try {
-						doc = Jsoup.connect(users.get(update.message().from().id()).getUrl()).get();
+						doc = Jsoup.connect(getURL(update.message().from().id())).get();
 					} catch (IOException e) {
 						bot.execute(new SendMessage(update.message().chat().id(), "У вас не добавлена ссылка!"));
 					}
@@ -75,9 +66,9 @@ public class App{
 						bot.execute(new SendMessage(update.message().chat().id(), div));
 
 					}
-				if (update.message().text().equals("Расписание на завтра")) {
+				if (update.message().text().equalsIgnoreCase("расписание на завтра") || update.message().text().equalsIgnoreCase("/command2")) {
 					try {
-						doc = Jsoup.connect(users.get(update.message().from().id()).getUrl()).get();
+						doc = Jsoup.connect(getURL(update.message().from().id())).get();
 					} catch (IOException e) {
 						bot.execute(new SendMessage(update.message().chat().id(), "У вас не добавлена ссылка!"));
 					}
@@ -85,11 +76,11 @@ public class App{
 					div = getDayTimetable(day);
 					bot.execute(new SendMessage(update.message().chat().id(), div));
 				}
-				if(update.message().text().equals("Расписание на текущую неделю"))
+				if(update.message().text().equalsIgnoreCase("расписание на текущую неделю") || update.message().text().equalsIgnoreCase("/command3"))
 				{
 //					bot.execute(new SendMessage(update.message().chat().id(), "ЫЫЫ"));
 					try {
-						doc = Jsoup.connect(users.get(update.message().from().id()).getUrl()).get();
+						doc = Jsoup.connect(getURL(update.message().from().id())).get();
 					} catch (IOException e) {
 						bot.execute(new SendMessage(update.message().chat().id(), "У вас не добавлена ссылка!"));
 					}
@@ -98,28 +89,50 @@ public class App{
 					bot.execute(new SendMessage(update.message().chat().id(), div));
 				}
 
-				if(update.message().text().equals("Расписание на следующую неделю")) {
+				if(update.message().text().equalsIgnoreCase("расписание на следующую неделю") || update.message().text().equalsIgnoreCase("/command4")) {
 					try {
-						doc = Jsoup.connect(users.get(update.message().from().id()).getUrl()).get();
+						doc = Jsoup.connect(getURL(update.message().from().id())).get();
 					} catch (IOException e) {
 						bot.execute(new SendMessage(update.message().chat().id(), "У вас не добавлена ссылка!"));
 					}
-					week = doc.select("div.week").get(1);
-					div = getWeekTimetable(week);
-					bot.execute(new SendMessage(update.message().chat().id(), div));
-				}
-				if(clock.toString().equals("12:38:00"))
-				{
 					try {
-						doc = Jsoup.connect(users.get(update.message().from().id()).getUrl()).get();
-					} catch (IOException e) {
-						bot.execute(new SendMessage(update.message().chat().id(), "У вас не добавлена ссылка!"));
+						week = doc.select("div.week").get(1);
+						div = getWeekTimetable(week);
+						bot.execute(new SendMessage(update.message().chat().id(), div));
+					} catch (IndexOutOfBoundsException e) {
+						bot.execute(new SendMessage(update.message().chat().id(), "Расписание на следующую неделю пока недоступно :)"));
 					}
-					day = doc.select("div.day").get(getDayNumberNew(LocalDate.now()) + 1);
-					div = getDayTimetable(day);
-					bot.execute(new SendMessage(update.message().chat().id(), "Расписание на завтра!"));
-					bot.execute(new SendMessage(update.message().chat().id(), div));
+
 				}
+//				if(update.message().text().equalsIgnoreCase("обновить ссылку")) {
+//					bot.execute(new SendMessage(update.message().chat().id(), "Хорошо, пришлите мне новую ссылку"));
+//					String url = update.message().text();
+//					System.out.println(url);
+//					if(!url.equalsIgnoreCase("обновить ссылку"))
+//						if(urlChecker(update, url)) {
+//							updateURL(update.message().from().id(), url);
+//							bot.execute(new SendMessage(update.message().chat().id(), "Принял, отлично, ссылка обновлена :)"));}
+//						else
+//							bot.execute(new SendMessage(update.message().chat().id(), "Вы прислали мне какую-то непонятную ссылку, пришлите ссылку формата \"https://rasp.sstu.ru/rasp/group/\""));
+//					}
+
+//					TimerTask task = new TimerTask() {
+//					@Override
+//					public void run() {
+//						Document doc = null;
+//						Element day;
+//						String div;
+//						try {
+//							doc = Jsoup.connect(getURL(update.message().from().id())).get();
+//						} catch (IOException e) {
+//							bot.execute(new SendMessage(update.message().chat().id(), "У вас не добавлена ссылка!"));
+//						}
+//						day = doc.select("div.day").get(getDayNumberNew(LocalDate.now()) + 1);
+//						div = getDayTimetable(day);
+//						bot.execute(new SendMessage(update.message().chat().id(), div));
+//				} };
+//				Timer timer = new Timer();
+//				timer.schedule(task,delay);
 
 
 			});
@@ -127,31 +140,24 @@ public class App{
 		});
 	}
 
-	public static void dbStatement(String Statement) {
-		try{
-			Class.forName("com.mysql.cj.jdbc.Driver").getDeclaredConstructor().newInstance();
-			try (Connection conn = getConnection()){
-				java.sql.Statement statement = conn.createStatement();
-				int rows = statement.executeUpdate(Statement);
-				System.out.println("Added: " + rows);
-			}
-		}
-		catch(Exception ex){
-			System.out.println("Connection failed...");
-			System.out.println(ex);
-		}
-	}
-	public static Connection getConnection() throws IOException, SQLException {
+//	public static ReplyKeyboardMarkup createKeyboard() {
+//		KeyboardButton today = new KeyboardButton("расписание на сегодня");
+//		KeyboardButton tomorrow = new KeyboardButton("расписание на завтра");
+//		KeyboardButton thisWeek = new KeyboardButton("расписание на текущую неделю");
+//		KeyboardButton nextWeek = new KeyboardButton("расписание на следующую неделю");
+//		ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup(today, tomorrow, thisWeek, nextWeek);
+//		return replyKeyboardMarkup;
+//
+//
+//	 }
 
-		Properties props = new Properties();
-		try(InputStream in = Files.newInputStream(Path.of(("src/main/resources/database.properties")))) {
-			props.load(in);
-		}
-		String url = props.getProperty("url");
-		String username = props.getProperty("username");
-		String password = props.getProperty("password");
-
-		return DriverManager.getConnection(url, username, password);
+	public static Boolean urlChecker(Update update, String url) {
+		String rightUrl = "https://rasp.sstu.ru/rasp/group/";
+		String testUrl = url.replaceAll("[0-9]", "");
+		if (!(testUrl.equals(rightUrl) && urlValidator(url) && url.length() != 0))
+			return false;
+		else
+			return  true;
 	}
 	public static boolean urlValidator(String url)
 	{
@@ -178,12 +184,17 @@ public class App{
 	public static String getDayTimetable(Element day)
 	{
 		StringBuilder dayTimetable = new StringBuilder();
-		for (int count = 0; count < 4; count++) {
-			String resultingLesson = day.select("div.day-lesson").get(count).text();
-			if(!(resultingLesson.length() < 1)) {
-				dayTimetable.append(resultingLesson);
-				dayTimetable.append("\n\n");
+		try {
+			for (int count = 0; count < day.select("div.day-lesson").size(); count++) {
+				String resultingLesson = day.select("div.day-lesson").get(count).text();
+				if(!(resultingLesson.length() < 1)) {
+					dayTimetable.append(resultingLesson);
+					dayTimetable.append("\n\n");
+				}
 			}
+		} catch (NullPointerException e)
+		{
+			System.out.println("В этом дне только 4 пары");
 		}
 		//String resultDay = new String(dayTimetable);
 		return dayTimetable.toString();
